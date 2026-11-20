@@ -1,0 +1,20 @@
+# API keys
+.env
+
+# Local data (database, images)
+data/
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+
+# Desktop build (PyInstaller)
+build/
+dist/
+*.spec
+
+# Desktop app log / WebView working folder (when run from source)
+promptshop.log*
+webview/

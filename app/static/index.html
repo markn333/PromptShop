@@ -1,0 +1,668 @@
+<!doctype html>
+<html lang="ja">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>PromptShop</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header class="app-header">
+        <h1 class="app-title">PromptShop</h1>
+        <nav class="tabs" role="tablist" aria-label="画面の切り替え">
+            <button class="tab" role="tab" data-tab="transform" aria-selected="true">変換</button>
+            <button class="tab" role="tab" data-tab="gallery" aria-selected="false">ギャラリー</button>
+            <button class="tab" role="tab" data-tab="prompts" aria-selected="false">プロンプト</button>
+            <button class="tab" role="tab" data-tab="costs" aria-selected="false">料金</button>
+            <button class="tab" role="tab" data-tab="settings" aria-selected="false">設定</button>
+            <button class="tab" role="tab" data-tab="help" aria-selected="false">ヘルプ</button>
+        </nav>
+        <span id="month-cost" class="month-cost" title="このツールで記録した概算の合計です。実際の請求額は各プロバイダーの管理画面で確認してください。"></span>
+    </header>
+
+    <main>
+        <!-- 変換 -->
+        <section id="panel-transform" class="panel" role="tabpanel">
+            <div class="columns">
+                <div class="card">
+                    <h2>元画像</h2>
+                    <div id="drop-zone" class="drop-zone" role="button" tabindex="0" aria-label="元画像を選ぶ">
+                        <img id="input-preview" alt="選択中の元画像" hidden>
+                        <p id="drop-hint">
+                            ここに画像をドロップ、またはクリックして選択<br>
+                            <span class="hint">PNG / JPEG / WebP、20 MB まで</span>
+                        </p>
+                    </div>
+                    <input id="file-input" type="file" accept="image/png,image/jpeg,image/webp" hidden>
+                    <p id="input-name" class="hint"></p>
+                    <div id="input-actions" class="actions"></div>
+                    <div class="strip-head">
+                        <h3>画像から選ぶ</h3>
+                        <div id="strip-filter" class="segmented" role="group" aria-label="表示する画像の種類">
+                            <button type="button" data-kind="source">元画像</button>
+                            <button type="button" data-kind="result">変換済み画像</button>
+                            <button type="button" data-kind="all">すべて</button>
+                        </div>
+                    </div>
+                    <div id="image-strip" class="image-strip"></div>
+                </div>
+                <div class="card">
+                    <h2>プロンプト</h2>
+                    <div class="field-row">
+                        <label class="field">
+                            <span>ジャンル</span>
+                            <select id="transform-genre"></select>
+                        </label>
+                        <label class="field grow">
+                            <span>タイトル</span>
+                            <select id="transform-prompt"></select>
+                        </label>
+                    </div>
+                    <label class="field">
+                        <span>本文（ここで書き換えても、保存済みのプロンプトは変わりません）</span>
+                        <textarea id="transform-body" rows="8" placeholder="タイトルを選ぶと本文が入ります"></textarea>
+                    </label>
+                    <label class="field">
+                        <span>プロバイダー</span>
+                        <select id="transform-provider"></select>
+                    </label>
+                    <label class="check" title="外すと、出力の形をプロバイダーに任せます（プロンプトの指示や、プロバイダーの既定の形になります）">
+                        <input id="transform-keep-aspect" type="checkbox" checked>
+                        <span>縦横比維持（元画像に近い縦横比で出力する）</span>
+                    </label>
+                    <div id="examples-block" hidden>
+                        <h3 id="examples-heading">作例</h3>
+                        <p id="examples-hint" class="hint"></p>
+                        <div id="transform-examples" class="image-strip"></div>
+                    </div>
+                    <div class="actions">
+                        <button id="transform-run" class="primary" disabled>変換</button>
+                        <span id="transform-status" class="hint"></span>
+                    </div>
+                    <div id="budget-confirm" class="budget-confirm" role="alert" hidden>
+                        <p id="budget-confirm-text"></p>
+                        <div class="actions">
+                            <button id="budget-confirm-run" class="danger" type="button">それでも変換する</button>
+                            <button id="budget-confirm-cancel" type="button">やめる</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="result-card" class="card result-card" hidden>
+                <h2>比較</h2>
+                <div class="compare">
+                    <figure>
+                        <figcaption>元画像</figcaption>
+                        <a id="compare-input-link" target="_blank" rel="noopener">
+                            <img id="compare-input" alt="元画像">
+                        </a>
+                    </figure>
+                    <figure>
+                        <figcaption>変換結果</figcaption>
+                        <a id="compare-output-link" target="_blank" rel="noopener">
+                            <img id="compare-output" alt="変換結果">
+                        </a>
+                        <p id="compare-error" class="error-text" hidden></p>
+                    </figure>
+                </div>
+                <div id="result-actions" class="actions wrap"></div>
+                <p id="result-meta" class="hint"></p>
+            </div>
+        </section>
+
+        <!-- ギャラリー -->
+        <section id="panel-gallery" class="panel" role="tabpanel" hidden>
+            <div id="gallery-list-view" class="card">
+                <div class="card-head">
+                    <h2>ギャラリー（変換結果）</h2>
+                    <span id="gallery-count" class="hint"></span>
+                </div>
+                <div class="field-row wrap">
+                    <label class="check">
+                        <input id="gallery-favorite" type="checkbox">
+                        <span>お気に入りのみ</span>
+                    </label>
+                    <label class="check">
+                        <input id="gallery-example" type="checkbox">
+                        <span>作例のみ</span>
+                    </label>
+                    <label class="field">
+                        <span>評価</span>
+                        <select id="gallery-rating">
+                            <option value="">指定なし</option>
+                            <option value="1">★1 以上</option>
+                            <option value="2">★2 以上</option>
+                            <option value="3">★3 以上</option>
+                            <option value="4">★4 以上</option>
+                            <option value="5">★5 のみ</option>
+                        </select>
+                    </label>
+                    <label class="field">
+                        <span>プロバイダー</span>
+                        <select id="gallery-provider"></select>
+                    </label>
+                    <label class="field grow">
+                        <span>プロンプト</span>
+                        <select id="gallery-prompt"></select>
+                    </label>
+                </div>
+                <div id="gallery-grid" class="gallery-grid"></div>
+            </div>
+
+            <div id="detail-view" class="card" hidden>
+                <div class="card-head">
+                    <h2 id="detail-heading">詳細</h2>
+                    <button id="detail-back" type="button">← 一覧へ戻る</button>
+                </div>
+                <div class="compare">
+                    <figure id="detail-input-figure">
+                        <figcaption>入力画像</figcaption>
+                        <div id="detail-input-slot"></div>
+                    </figure>
+                    <figure>
+                        <figcaption id="detail-output-caption">変換結果</figcaption>
+                        <div id="detail-output-slot"></div>
+                    </figure>
+                </div>
+                <div id="detail-actions" class="actions wrap"></div>
+                <p id="detail-meta" class="hint"></p>
+                <div id="detail-prompt">
+                    <h3>使ったプロンプト（実行時点の内容）</h3>
+                    <p id="detail-prompt-title" class="detail-prompt-title"></p>
+                    <pre id="detail-prompt-body" class="prompt-body"></pre>
+                </div>
+                <h3>変換の連鎖（最初の元画像から）</h3>
+                <div id="detail-chain" class="chain"></div>
+            </div>
+        </section>
+
+        <!-- プロンプト -->
+        <section id="panel-prompts" class="panel" role="tabpanel" hidden>
+            <div class="columns">
+                <div class="stack">
+                    <!-- ふだんは閉じておき、一覧を上に見せる。見出しを押すと開く -->
+                    <details id="genre-card" class="card fold">
+                        <summary><h2>ジャンルの管理</h2><span id="genre-summary" class="hint"></span></summary>
+                        <form id="genre-form" class="field-row" autocomplete="off">
+                            <label class="field grow">
+                                <span>新しいジャンル名</span>
+                                <input id="genre-name" type="text" maxlength="50" required>
+                            </label>
+                            <button type="submit">追加</button>
+                        </form>
+                        <ul id="genre-list" class="genre-list"></ul>
+                    </details>
+
+                    <div class="card">
+                        <div class="card-head">
+                            <h2>プロンプト一覧</h2>
+                            <button id="prompt-new">新規</button>
+                        </div>
+                        <div class="field-row">
+                            <label class="field">
+                                <span>ジャンル</span>
+                                <select id="list-genre"></select>
+                            </label>
+                            <label class="field grow">
+                                <span>検索（タイトル・本文）</span>
+                                <input id="list-search" type="search" placeholder="キーワード">
+                            </label>
+                        </div>
+                        <p id="list-count" class="hint"></p>
+                        <ul id="prompt-list" class="prompt-list"></ul>
+                    </div>
+                </div>
+
+                <div class="stack">
+                    <form id="prompt-form" class="card" autocomplete="off">
+                        <h2 id="editor-heading">新しいプロンプト</h2>
+                        <!-- 新しいプロンプトのときだけ出す。押すと開き、お手本の画像から本文の下書きを作る -->
+                        <details id="draft-card" class="fold draft-fold">
+                            <summary>
+                                <span class="draft-fold-label">画像から下書きを作る</span>
+                                <span class="hint">お手本の画像の作風を AI が読み取ります（1 回ごとに少額の料金）</span>
+                            </summary>
+                            <p class="hint">
+                                作風（線・塗り・色づかい・質感・光など）を言葉にした下書きを、下のタイトルと本文に入れます。
+                                写っている人物や物は本文に入れません。
+                            </p>
+                            <div class="field-row wrap">
+                                <button id="draft-pick" type="button">画像ファイルを選ぶ</button>
+                                <input id="draft-file" type="file" accept="image/png,image/jpeg,image/webp" hidden>
+                                <span id="draft-image-name" class="hint"></span>
+                            </div>
+                            <div class="strip-head">
+                                <h3>画像から選ぶ</h3>
+                                <div id="draft-strip-filter" class="segmented" role="group" aria-label="表示する画像の種類">
+                                    <button type="button" data-kind="source">元画像</button>
+                                    <button type="button" data-kind="result">変換済み画像</button>
+                                    <button type="button" data-kind="all">すべて</button>
+                                </div>
+                            </div>
+                            <div id="draft-strip" class="image-strip"></div>
+                            <div class="field-row wrap">
+                                <label class="field grow">
+                                    <span>読み取りに使うプロバイダー</span>
+                                    <select id="draft-provider"></select>
+                                </label>
+                                <label class="field">
+                                    <span>本文の言語</span>
+                                    <select id="draft-language">
+                                        <option value="ja">日本語</option>
+                                        <option value="en">英語</option>
+                                    </select>
+                                </label>
+                            </div>
+                            <div class="actions">
+                                <button id="draft-run" class="primary" type="button" disabled>作風を読み取る</button>
+                                <span id="draft-status" class="hint"></span>
+                            </div>
+                            <div id="draft-result" class="draft-result" hidden>
+                                <h3 id="draft-result-heading">できた下書き</h3>
+                                <p id="draft-meta" class="hint"></p>
+                                <div id="draft-preview">
+                                    <p id="draft-title" class="draft-title"></p>
+                                    <p id="draft-body" class="draft-body"></p>
+                                    <div class="actions">
+                                        <button id="draft-apply" type="button">この下書きで入力欄を置き換える</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </details>
+                        <label class="field">
+                            <span>タイトル</span>
+                            <input id="editor-title" type="text" maxlength="100" required>
+                        </label>
+                        <label class="field">
+                            <span>ジャンル</span>
+                            <select id="editor-genre"></select>
+                        </label>
+                        <label class="field">
+                            <span>本文</span>
+                            <textarea id="editor-body" rows="10" maxlength="4000" required></textarea>
+                        </label>
+                        <div class="actions">
+                            <button class="primary" type="submit">保存</button>
+                            <button id="editor-delete" class="danger" type="button" hidden>削除</button>
+                        </div>
+                    </form>
+
+                    <div id="prompt-results-card" class="card" hidden>
+                        <h2>これを使った変換結果</h2>
+                        <p id="prompt-results-count" class="hint"></p>
+                        <div id="prompt-results" class="image-strip"></div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <!-- 料金 -->
+        <section id="panel-costs" class="panel" role="tabpanel" hidden>
+            <div class="columns">
+                <div class="stack">
+                    <div class="card">
+                        <h2 id="cost-heading">今月の使用料金（概算）</h2>
+                        <p id="cost-total" class="cost-total"></p>
+                        <p id="cost-budget-line" class="hint"></p>
+                        <p id="cost-analysis-line" class="hint"></p>
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>プロバイダー</th>
+                                    <th class="num">回数</th>
+                                    <th class="num">うち失敗</th>
+                                    <th class="num">概算料金</th>
+                                </tr>
+                            </thead>
+                            <tbody id="cost-providers"></tbody>
+                        </table>
+                        <p class="hint note">
+                            金額は、変換と作風の読み取りのたびにこのツールが記録した概算の合計です。
+                            実際の請求額は各プロバイダーの管理画面で確認してください。
+                            このツール以外で使った分は含みません。
+                        </p>
+                    </div>
+
+                    <form id="budget-form" class="card" autocomplete="off">
+                        <h2>月の予算</h2>
+                        <p class="hint">
+                            今月の合計が予算に達すると、変換の前に確認を出します（変換そのものは止めません）。
+                        </p>
+                        <div class="field-row">
+                            <label class="field grow">
+                                <span>予算（USD）</span>
+                                <input id="budget-input" type="number" min="0.01" max="10000" step="0.01"
+                                       inputmode="decimal" placeholder="例: 5">
+                            </label>
+                            <button class="primary" type="submit">保存</button>
+                            <button id="budget-clear" type="button">予算なしにする</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="card">
+                    <h2>月ごとの合計（概算）</h2>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>月</th>
+                                <th class="num">回数</th>
+                                <th class="num">うち失敗</th>
+                                <th class="num">概算料金</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cost-monthly"></tbody>
+                    </table>
+
+                    <div class="card-head section-gap">
+                        <h2>失敗した変換（新しい順）</h2>
+                        <button id="failed-clear" class="small" type="button">一覧をクリア</button>
+                    </div>
+                    <p class="hint">
+                        失敗でも料金が記録されているものは、課金された、またはその可能性があるものです。
+                        クリアしても、料金の記録と回数は消えません（一覧から消すだけです）。
+                    </p>
+                    <ul id="failed-list" class="failed-list"></ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- 設定 -->
+        <section id="panel-settings" class="panel" role="tabpanel" hidden>
+            <div class="stack narrow">
+                <div class="card">
+                    <h2>API キー</h2>
+                    <div class="must-box">
+                        <p class="must-title">API キーを使う前に、必ず次の 2 つを行ってください</p>
+                        <ul class="plain-list">
+                            <li>
+                                <strong>キーには短い有効期限を付ける。長期・無期限のキーは使わない。</strong>
+                                有効期限を選べる場合は、使う期間だけの短い期限にします。選べない場合は、使い終わったら各社の管理画面でキーを無効にし、
+                                次に使うときに作り直します。使っていないキーを残さないでください。
+                            </li>
+                            <li>
+                                <strong>各社の管理画面で、支払いの上限を必ず設定する。</strong>
+                                月の利用上限（予算の上限）を設定し、前払い（プリペイド）の場合は自動チャージを切っておきます。
+                                上限を設定していないと、キーが漏れたときや操作を誤ったときに、請求が止まりません。
+                                このアプリの「月の予算」は目安を知らせるだけで、請求を止める力はありません。
+                            </li>
+                        </ul>
+                    </div>
+                    <p class="hint">
+                        キーはこの PC の <code>.env</code> ファイルに保存され、保存するとすぐ使えます。
+                        登録後は末尾 4 文字だけを表示し、キーの全体を画面に出すことはありません。
+                    </p>
+                    <ul id="api-key-list" class="api-key-list"></ul>
+                </div>
+
+                <div class="card">
+                    <h2>データの置き場</h2>
+                    <p class="hint">
+                        プロンプト・履歴・画像を置くフォルダーです。変更は、アプリを次に起動したときから効きます。
+                    </p>
+                    <table class="table about-table">
+                        <tbody>
+                            <tr><th>今の置き場</th><td id="location-current" class="path"></td></tr>
+                            <tr><th>既定の場所</th><td id="location-default" class="path"></td></tr>
+                        </tbody>
+                    </table>
+                    <p id="location-missing" class="notice warn" role="alert" hidden></p>
+                    <p id="location-pending" class="notice" role="status" hidden></p>
+                    <form id="location-form" autocomplete="off">
+                        <div class="field-row">
+                            <label class="field grow">
+                                <span>新しい置き場（フォルダーの場所）</span>
+                                <input id="location-input" type="text" maxlength="400" spellcheck="false"
+                                       placeholder="例: D:\PromptShopData">
+                            </label>
+                            <button class="primary" type="submit">変更</button>
+                            <button id="location-reset" type="button">既定に戻す</button>
+                        </div>
+                    </form>
+                    <ul class="plain-list hint">
+                        <li>空のフォルダー（または、まだないフォルダー）を指定すると、今のデータをそこへ写します。元の場所のデータは消しません。</li>
+                        <li>PromptShop のデータがすでに入っているフォルダーを指定すると、写さずに、そのデータを使います。</li>
+                        <li>API キーのファイルは移しません（今の場所のままです）。</li>
+                        <li>クラウドと同期するフォルダーや、ネットワーク上のフォルダーは避けてください。データベースが壊れることがあります。</li>
+                        <li>「既定に戻す」は、データを写しません。既定の場所に残っているデータをそのまま使います。</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- ヘルプ -->
+        <section id="panel-help" class="panel" role="tabpanel" hidden>
+            <div class="stack narrow">
+                <div class="card">
+                    <h2>PromptShop について</h2>
+                    <p id="about-version" class="about-version">PromptShop</p>
+                    <p class="hint">
+                        画像変換のプロンプトを登録・検索し、選んだ画像に OpenAI・Grok・Gemini の API で適用して、
+                        結果を見比べて管理するツールです。この PC の中だけで動きます。
+                    </p>
+                    <table class="table about-table">
+                        <tbody>
+                            <tr><th>著作権</th><td id="about-copyright">Copyright (c) 2026 REDSUN</td></tr>
+                            <tr><th>ライセンス</th><td id="about-license">MIT License</td></tr>
+                            <tr><th>データの置き場</th><td id="about-data-dir" class="path"></td></tr>
+                            <tr><th>API キーのファイル</th><td id="about-env-file" class="path"></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card">
+                    <h2>必ず守ってほしいこと</h2>
+                    <div class="must-box">
+                        <p class="must-title">API キーを使う前に、必ず次の 2 つを行ってください</p>
+                        <ul class="plain-list">
+                            <li>
+                                <strong>キーには短い有効期限を付ける。長期・無期限のキーは使わない。</strong>
+                                有効期限を選べる場合は、使う期間だけの短い期限にします。選べない場合は、使い終わったら各社の管理画面でキーを無効にし、
+                                次に使うときに作り直します。使っていないキーを残さないでください。
+                            </li>
+                            <li>
+                                <strong>各社の管理画面で、支払いの上限を必ず設定する。</strong>
+                                月の利用上限（予算の上限）を設定し、前払い（プリペイド）の場合は自動チャージを切っておきます。
+                                上限を設定していないと、キーが漏れたときや操作を誤ったときに、請求が止まりません。
+                                このアプリの「月の予算」は目安を知らせるだけで、請求を止める力はありません。
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>免責事項</h2>
+                    <p class="disclaimer-lead">
+                        このソフトウェアは「現状のまま」で提供されます。作者は、このソフトウェアの使用または使用できないことから生じた
+                        損害について、一切の責任を負いません。次の点を理解したうえで、ご自身の責任で使ってください。
+                    </p>
+                    <ul class="plain-list">
+                        <li>
+                            <strong>API の料金は、すべて利用者の負担です。</strong>
+                            このソフトウェアは、利用者が登録した API キーで、OpenAI・xAI（Grok）・Google（Gemini）の有料の API を呼び出します。
+                            変換や作風の読み取りで発生した料金について、作者は一切の責任を負いません。
+                            操作の誤り、設定の誤り、このソフトウェアの不具合、各社の仕様変更によって、意図しない料金が発生した場合も同じです。
+                        </li>
+                        <li>
+                            <strong>失敗しても料金がかかることがあります。</strong>
+                            出力が安全フィルターで止められた場合、応答が時間内に返らなかった場合、結果を保存できなかった場合などでも、
+                            API の料金は発生することがあります。
+                        </li>
+                        <li>
+                            <strong>画面の金額は概算です。</strong>
+                            このソフトウェアが記録した見積もりであり、実際の請求額と一致することを保証しません。
+                            各社が単価を変えると、ずれが大きくなります。実際の請求額は、各社の管理画面で確認してください。
+                            月の予算は目安を知らせるだけで、変換や課金を止める機能ではありません。
+                        </li>
+                        <li>
+                            <strong>画像とプロンプトは、各社のサーバーへ送信されます。</strong>
+                            送った内容の扱いは、各社の利用規約とプライバシーポリシーに従います。
+                            他人の権利を侵害する画像や、送ってはいけない情報が写った画像を使わないでください。
+                        </li>
+                        <li>
+                            <strong>生成された画像と文章の内容は保証しません。</strong>
+                            正確さ、品質、他人の著作権・肖像権・商標などを侵害していないことを、作者は保証しません。
+                            生成物の利用と、各社の利用規約・コンテンツポリシーを守ることは、利用者の責任です。
+                        </li>
+                        <li>
+                            <strong>API キーの管理は、利用者の責任です。</strong>
+                            キーは、この PC のファイルに、暗号化せずに保存されます。この PC を使える人は読めます。
+                            キーの漏えいや不正利用による損害について、作者は責任を負いません。
+                        </li>
+                        <li>
+                            <strong>データの消失について責任を負いません。</strong>
+                            登録したプロンプト、画像、履歴が、不具合や操作の誤り、PC の故障で失われることがあります。
+                            大事なデータは、上の「データの置き場」のフォルダーごとバックアップしてください。削除した画像は元に戻せません。
+                        </li>
+                        <li>
+                            <strong>動作を保証しません。</strong>
+                            各社の API の変更や終了によって、予告なく使えなくなることがあります。
+                        </li>
+                    </ul>
+                    <p class="hint note">法的な効力のある文面は、下の「ライセンス」の英文（MIT License）です。上の説明は、その趣旨と、このソフトウェア特有の注意点を日本語で書いたものです。</p>
+                </div>
+
+                <div class="card">
+                    <h2>使い方</h2>
+                    <details class="manual">
+                        <summary>1. はじめに（API キーの登録）</summary>
+                        <ul class="plain-list">
+                            <li>「設定」タブで、使いたいプロバイダーの API キーを入れて「保存」を押します。1 社だけでも使えます。</li>
+                            <li>キーは各社の管理画面で発行します。発行と利用には、各社への登録と支払い方法の設定が必要です。</li>
+                            <li><strong>キーには短い有効期限を付け、各社の管理画面で支払いの上限を必ず設定してください</strong>（上の「必ず守ってほしいこと」）。</li>
+                            <li>登録後は末尾 4 文字だけが表示されます。キーが未登録のプロバイダーは選べません。</li>
+                        </ul>
+                    </details>
+                    <details class="manual">
+                        <summary>2. 画像を変換する（「変換」タブ）</summary>
+                        <ul class="plain-list">
+                            <li>左の枠に画像をドロップするか、枠を押してファイルを選びます（PNG / JPEG / WebP、20 MB まで）。</li>
+                            <li>「画像から選ぶ」で、前に取り込んだ画像や変換済みの画像を選び直せます。「元画像」「変換済み画像」「すべて」で切り替えます。</li>
+                            <li>ジャンルとタイトルでプロンプトを選びます。本文はその場で書き換えられます（登録済みのプロンプトは変わりません）。プロンプトを選ばずに本文を直接書いても変換できます。</li>
+                            <li>プロバイダーを選んで「変換」を押します。1〜2 分かかることがあります。<strong>1 回押すごとに料金がかかります。</strong></li>
+                            <li>「縦横比維持」を外すと、出力の形をプロバイダーに任せます。プロンプトに形（正方形など）を書いたときに使います。</li>
+                            <li>結果は元画像と左右に並びます。画像を押すと拡大し、「保存」でファイルに保存できます。</li>
+                            <li>選んでいる画像は、名前の下の「この画像を削除」（2 回押し）で消せます。</li>
+                        </ul>
+                    </details>
+                    <details class="manual">
+                        <summary>3. 結果を管理する（「ギャラリー」タブ）</summary>
+                        <ul class="plain-list">
+                            <li>変換結果が新しい順に並びます。お気に入り、評価、プロバイダー、プロンプト、作例で絞り込めます。</li>
+                            <li>♥ でお気に入り、★ で 1〜5 の評価を付けます。付いている星をもう一度押すと未評価に戻ります。</li>
+                            <li>サムネイルを押すと詳細が開き、元画像との比較、使ったプロンプト、変換の連鎖（どの画像から作ったか）が見られます。</li>
+                            <li>「再変換」で、その結果を元画像にして別のプロンプトを重ねられます。</li>
+                            <li>「作例に登録」すると、変換画面で同じプロンプトとプロバイダーを選んだときに見本として出ます。</li>
+                            <li>「削除」は 2 回押しです。画像は消えますが、履歴と料金の記録は残ります。元には戻せません。</li>
+                        </ul>
+                    </details>
+                    <details class="manual">
+                        <summary>4. プロンプトを登録・編集する（「プロンプト」タブ）</summary>
+                        <ul class="plain-list">
+                            <li>「新規」を押し、タイトル・ジャンル・本文を入れて「保存」を押します。</li>
+                            <li>登録済みのものを直すときは、一覧の行を押します。右の欄で編集と削除ができます。</li>
+                            <li>一覧は、ジャンルとキーワードで絞り込めます。</li>
+                            <li>「ジャンルの管理」を開くと、ジャンルの追加・改名・並べ替え・削除ができます。ジャンルを消しても、プロンプトは「未分類」で残ります。</li>
+                        </ul>
+                    </details>
+                    <details class="manual">
+                        <summary>5. 画像からプロンプトの下書きを作る</summary>
+                        <ul class="plain-list">
+                            <li>「プロンプト」タブで「新規」を押し、「画像から下書きを作る」を開きます。</li>
+                            <li>お手本の画像、読み取りに使うプロバイダー、本文の言語を選んで「作風を読み取る」を押します。<strong>1 回ごとに料金がかかります。</strong></li>
+                            <li>読み取るのは作風（線・塗り・色づかい・質感など）だけです。写っている人物や物、構図の指定は入りません。必要なら手で書き足してください。</li>
+                            <li>下書きは入力欄に入るだけです。「保存」を押すまで登録されません。</li>
+                        </ul>
+                    </details>
+                    <details class="manual">
+                        <summary>6. 料金を確認する（「料金」タブ）</summary>
+                        <ul class="plain-list">
+                            <li>今月の概算の合計、プロバイダー別の内訳、月ごとの合計、失敗した変換が見られます。今月の合計は画面の右上にもいつも出ています。</li>
+                            <li>月の予算を入れておくと、合計が予算に達したとき、変換の前に確認が出ます（変換は止めません）。</li>
+                            <li>「失敗した変換」の「一覧をクリア」は、一覧から消すだけです。料金の記録と回数は残ります。</li>
+                        </ul>
+                    </details>
+                    <details class="manual">
+                        <summary>7. データの置き場とバックアップ</summary>
+                        <ul class="plain-list">
+                            <li>置き場は「設定」タブの「データの置き場」で変えられます。変更は、次に起動したときから効きます。</li>
+                            <li>プロンプト・履歴・画像は、上の「データの置き場」のフォルダーに入っています。アプリを閉じてから、フォルダーごと別の場所へ写せばバックアップになります。</li>
+                            <li>API キーは「API キーのファイル」に入っています。このファイルは人に渡さないでください。</li>
+                        </ul>
+                    </details>
+                    <details class="manual">
+                        <summary>8. 困ったとき</summary>
+                        <ul class="plain-list">
+                            <li>「API キーが正しくありません」: 「設定」タブでキーを登録し直します。</li>
+                            <li>「利用上限に達したか、残高が不足しています」: 各社の管理画面で、残高と上限を確認します。</li>
+                            <li>「コンテンツポリシーにより拒否されました」: 画像かプロンプトが各社の決まりに合っていません。内容を変えて試します。</li>
+                            <li>「別の変換を実行中です」: 前の変換が終わるまで待ちます。</li>
+                            <li>変換中に窓を閉じようとすると 1 回目は止められます。10 秒以内にもう一度閉じると終了します（その変換の結果は残りませんが、料金はかかっていることがあります）。</li>
+                        </ul>
+                    </details>
+                </div>
+
+                <div class="card">
+                    <h2>ライセンス</h2>
+                    <h3>PromptShop</h3>
+<pre class="license-text">MIT License
+
+Copyright (c) 2026 REDSUN
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.</pre>
+                    <h3>同梱しているソフトウェア</h3>
+                    <p class="hint">
+                        アプリ版（PromptShop.exe）には、次のソフトウェアが入っています。それぞれのライセンスに従って使っています。
+                        画面の表示には、Windows に入っている Microsoft Edge WebView2 を使います（同梱はしていません）。
+                    </p>
+                    <table class="table">
+                        <thead>
+                            <tr><th>名前</th><th>ライセンス</th></tr>
+                        </thead>
+                        <tbody id="third-party-list"></tbody>
+                    </table>
+                    <div class="actions">
+                        <button id="license-full-toggle" type="button">ライセンスの全文を表示</button>
+                        <span id="license-full-status" class="hint"></span>
+                    </div>
+                    <pre id="license-full" class="license-text scroll" hidden></pre>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- 画像の拡大表示（別のタブを開かず、この画面の上に重ねて出す） -->
+    <div id="lightbox" class="lightbox" role="dialog" aria-modal="true" aria-label="画像の拡大表示" hidden>
+        <div class="lightbox-bar">
+            <span class="hint">画像をクリックすると、原寸と全体表示が切り替わります</span>
+            <a id="lightbox-save" class="button" download>保存</a>
+            <button id="lightbox-close" type="button">閉じる（Esc）</button>
+        </div>
+        <div id="lightbox-stage" class="lightbox-stage">
+            <img id="lightbox-image" alt="拡大表示中の画像">
+        </div>
+    </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

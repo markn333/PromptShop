@@ -1,0 +1,4 @@
+# 専用の窓で開く版（PromptShop.exe）を作る・動かすときだけ必要なもの。
+# ブラウザで使うだけなら requirements.txt だけでよい。
+pywebview>=6.0
+pyinstaller>=6.0
