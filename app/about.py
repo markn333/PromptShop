@@ -7,9 +7,13 @@ COPYRIGHT = "Copyright (c) 2026 REDSUN"
 LICENSE_NAME = "MIT License"
 
 PYTHON_LICENSE = "PSF-2.0"
+# Python 本体と一緒に入る部品（Python の配布物に含まれているもの）
+PYTHON_PARTS = "OpenSSL、SQLite、libffi、bzip2、XZ、Microsoft Visual C++ ランタイムを含む"
 
 # PromptShop.exe に同梱しているソフト（Python 本体は別に扱う）。
 # license は、各配布物のメタデータで 2026-11-20 に確認したもの。
+# 一覧は、必要なものだけを入れた環境で作った exe の中身（同梱された Python のパッケージ）と突き合わせてある。
+# exe は、必ずそういう環境（venv）で作ること。ほかのソフトが入った環境で作ると、無関係なものまで同梱される。
 # 依存するソフトを足したり入れ替えたりしたら、ここを直して tools/collect_licenses.py を実行し直す。
 THIRD_PARTY = (
     {"name": "FastAPI", "package": "fastapi", "license": "MIT", "url": "https://github.com/fastapi/fastapi"},
@@ -40,6 +44,10 @@ THIRD_PARTY = (
     {"name": "cffi", "package": "cffi", "license": "MIT", "url": "https://github.com/python-cffi/cffi"},
     {"name": "pycparser", "package": "pycparser", "license": "BSD-3-Clause", "url": "https://github.com/eliben/pycparser"},
     {"name": "exceptiongroup", "package": "exceptiongroup", "license": "MIT", "url": "https://github.com/agronholm/exceptiongroup"},
+    {"name": "annotated-doc", "package": "annotated-doc", "license": "MIT", "url": "https://github.com/fastapi/annotated-doc"},
+    {"name": "packaging", "package": "packaging", "license": "Apache-2.0 OR BSD-2-Clause", "url": "https://github.com/pypa/packaging"},
+    {"name": "setuptools", "package": "setuptools", "license": "MIT", "url": "https://github.com/pypa/setuptools"},
+    {"name": "tomli", "package": "tomli", "license": "MIT", "url": "https://github.com/hukkin/tomli"},
     {
         "name": "PyInstaller（起動部分）", "package": "pyinstaller",
         "license": "GPL-2.0-or-later（同梱したアプリを別のライセンスで配布できる例外つき）",

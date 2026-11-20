@@ -21,7 +21,10 @@ def get_about(request: Request) -> dict:
         "env_file": display_path(request.app.state.api_keys.env_file),
         "log_file": display_path(config.LOG_FILE),
         "third_party": [
-            {"name": "Python", "license": about.PYTHON_LICENSE, "url": "https://www.python.org/"},
+            {
+                "name": f"Python（{about.PYTHON_PARTS}）",
+                "license": about.PYTHON_LICENSE, "url": "https://www.python.org/",
+            },
             *({"name": item["name"], "license": item["license"], "url": item["url"]} for item in about.THIRD_PARTY),
         ],
     }

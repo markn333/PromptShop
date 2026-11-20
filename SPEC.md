@@ -84,7 +84,7 @@
 | `app/analyzers/` | 作風の読み取り役。`base.py`（共通インターフェース）、`common.py`（AI への指示文・送る画像の準備・応答の読み取り・料金）、`openai_analyzer.py`、`grok_analyzer.py`、`gemini_analyzer.py` |
 | `app/providers/` | `base.py`（共通インターフェース）、`common.py`（通信の失敗の扱い・エラー文・元画像の向き）、`openai_provider.py`、`grok_provider.py`、`gemini_provider.py` |
 | `app/presenters.py` | データベースの行を API の応答の形に変える |
-| `app/about.py` | アプリの名前・バージョン・著作権表示・ライセンスと、同梱しているソフトの一覧 |
+| `app/about.py` | アプリの名前・バージョン・著作権表示・ライセンスと、同梱しているソフトの一覧（33 件 + Python。必要なものだけを入れた環境で作った exe の中身と突き合わせてある） |
 | `app/services/data_location.py`、`app/routers/data_location.py` | データの置き場の表示と変更、画面に出すパスの置き換え（`display_path`） |
 | `tools/collect_licenses.py` | 同梱しているソフトのライセンス全文を集めて `app/static/third_party_licenses.txt` を作る（`build_exe.bat` が exe を作る前に実行する） |
 | `LICENSE` | PromptShop 本体のライセンス（MIT License、Copyright (c) 2026 REDSUN） |

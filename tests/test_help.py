@@ -19,7 +19,7 @@ def test_about_returns_version_license_and_locations(client, tmp_path):
     assert info["data_dir"] == display_path(tmp_path)
     assert info["env_file"].endswith(".env")
     names = [item["name"] for item in info["third_party"]]
-    assert names[0] == "Python" and {"FastAPI", "Pillow", "pywebview"} <= set(names)
+    assert names[0].startswith("Python") and {"FastAPI", "Pillow", "pywebview"} <= set(names)
     assert all(item["license"] and item["url"].startswith("https://") for item in info["third_party"])
 
 
